@@ -18,7 +18,7 @@ namespace RealtimeBeatDetector
 
         private DateTime lastBeat = DateTime.Now;
 
-        public float BeatThreshold { get; set; } = 300;
+        public float BeatThreshold { get; set; } = 10f;
 
         public void ProcessBuffer(byte[] buffer, int length)
         {
@@ -64,9 +64,10 @@ namespace RealtimeBeatDetector
                 DetectBeat();
             }
 
-            max /= 3;
-
-            BeatThreshold += (max - BeatThreshold) * (GetAveragePastDiff(0, (EnergyBuffLen - AvgWindowWidth) / 2) / 10000);
+            max /= 3f;
+            float avgDiff = GetAveragePastDiff(0, (EnergyBuffLen - AvgWindowWidth) / 2);
+            float targetThreshold = Math.Max(1f, Math.Max(avgDiff * 1.5f, max * 0.6f));
+            BeatThreshold += (targetThreshold - BeatThreshold) * 0.25f;
         }
 
         private float GetAveragePastEnergy(int index, int radius)
@@ -78,7 +79,7 @@ namespace RealtimeBeatDetector
                 avg += energyBuffer[index + j];
             }
 
-            return avg / radius;
+            return avg / (radius + 1);
         }
 
         private float GetAveragePastDiff(int start, int end)
