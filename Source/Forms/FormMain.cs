@@ -1,6 +1,10 @@
 ﻿using CSCore.SoundIn;
 using System;
 using System.Drawing;
+using System.IO;
+using System.Net.Http;
+using System.Text;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace RealtimeBeatDetector.Source.Forms
@@ -9,11 +13,17 @@ namespace RealtimeBeatDetector.Source.Forms
     {
         private readonly BeatDetector beatDetector;
         private readonly WasapiLoopbackCapture wasapi;
+        private readonly HttpClient httpClient;
+        private const string UrlConfigFile = "api_url.txt";
+        private readonly string apiUrl;
 
         public FormMain()
         {
             InitializeComponent();
             Application.ApplicationExit += Application_ApplicationExit;
+
+            httpClient = new HttpClient();
+            apiUrl = ReadApiUrlFromFile();
 
             // Initialize BeatDetector
             beatDetector = new BeatDetector();
@@ -41,7 +51,7 @@ namespace RealtimeBeatDetector.Source.Forms
             t.Start();
         }
 
-        private void BeatDetector_BpmDetected(object sender, BpmEventArgs e)
+        private async void BeatDetector_BpmDetected(object sender, BpmEventArgs e)
         {
             if (!IsDisposed && !Disposing)
             {
@@ -49,6 +59,48 @@ namespace RealtimeBeatDetector.Source.Forms
                 {
                     bpmCounter.Text = e.AvgBpm.ToString("#");
                 }));
+
+                await CallBeatApiAsync();
+            }
+        }
+
+        private async Task CallBeatApiAsync()
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(apiUrl))
+                {
+                    return;
+                }
+
+                var content = new StringContent("1.0", Encoding.UTF8, "application/json");
+                await httpClient.PostAsync(apiUrl, content);
+            }
+            catch (Exception)
+            {
+                // Silently ignore API errors to prevent disrupting beat detection
+            }
+        }
+
+        private string ReadApiUrlFromFile()
+        {
+            try
+            {
+                if (File.Exists(UrlConfigFile))
+                {
+                    string url = File.ReadAllText(UrlConfigFile).Trim();
+                    return url;
+                }
+                else
+                {
+                    // Create default config file if it doesn't exist
+                    File.WriteAllText(UrlConfigFile, "https://localhost:44339/api/beat");
+                    return " ";
+                }
+            }
+            catch (Exception)
+            {
+                return null;
             }
         }
 
@@ -80,6 +132,8 @@ namespace RealtimeBeatDetector.Source.Forms
             wasapi.DataAvailable -= Wasapi_DataAvailable;
             wasapi.Stop();
             wasapi.Dispose();
+
+            httpClient?.Dispose();
         }
     }
 }
