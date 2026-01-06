@@ -2,24 +2,68 @@
 
 namespace RealtimeBeatDetector
 {
+    /// <summary>
+    /// Core beat detection algorithm using energy-based detection with adaptive thresholds
+    /// </summary>
     public class BeatDetector
     {
+        /// <summary>
+        /// Event fired when a beat is detected
+        /// </summary>
         public event EventHandler BeatDetected;
+        
+        /// <summary>
+        /// Event fired when BPM is calculated
+        /// </summary>
         public event EventHandler<BpmEventArgs> BpmDetected;
 
+        /// <summary>
+        /// Length of the energy buffer
+        /// </summary>
         public const int EnergyBuffLen = 100;
+        
+        /// <summary>
+        /// Width of the averaging window
+        /// </summary>
         public const int AvgWindowWidth = 40;
+        
+        /// <summary>
+        /// Minimum spacing between beats in milliseconds
+        /// </summary>
         public const int BeatMinSpacingMillis = 400;
 
+        /// <summary>
+        /// Buffer storing recent energy values
+        /// </summary>
         public BufferList<float> energyBuffer = new BufferList<float>(EnergyBuffLen);
+        
+        /// <summary>
+        /// Buffer storing recent BPM values
+        /// </summary>
         public BufferList<float> bpmBuffer = new BufferList<float>(4);
+        
+        /// <summary>
+        /// Buffer for local average calculations
+        /// </summary>
         public float[] localAvgBuffer = new float[EnergyBuffLen];
+        
+        /// <summary>
+        /// Buffer for local difference calculations
+        /// </summary>
         public float[] localDiffBuffer = new float[EnergyBuffLen];
 
         private DateTime lastBeat = DateTime.Now;
 
+        /// <summary>
+        /// Gets or sets the beat detection threshold. Higher values make detection less sensitive.
+        /// </summary>
         public float BeatThreshold { get; set; } = 10f;
 
+        /// <summary>
+        /// Process an audio buffer for beat detection
+        /// </summary>
+        /// <param name="buffer">PCM audio data buffer</param>
+        /// <param name="length">Length of data to process</param>
         public void ProcessBuffer(byte[] buffer, int length)
         {
             float[] samples = PCMUtils.PCM32ToSamples(buffer, length);
